@@ -14,7 +14,7 @@
 use Config::Properties;
 #use File::Copy;
 #use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
-#use List::MoreUtils qw(firstidx);
+use List::MoreUtils qw(firstidx);
 #use Net::Amazon::S3;
 use Net::SMTP_auth;
 
@@ -123,8 +123,11 @@ sub setupConfiguredValues {
 	$outputlocation = "$parentOutputLocation/$backupDirectoryName";
 	
 	if(! (-e $parentOutputLocation)) {
-		print "The output directory $parentOutputLocation did not exist.  Please create it and run again.";
-		exit;
+		`mkdir $parentOutputLocation`;
+		if(! (-e $parentOutputLocation)) {
+			print "The output directory $parentOutputLocation did not exist and could not be created.  Please create it and run again.";
+			exit;
+		}
 	} 
 	
 	# if the backup directory doesn't exist, create it
@@ -295,9 +298,9 @@ sub createAndSendZipFileForDatabase {
 #	$zip->addFile( $databaseSQLFileLocation, "$database.sql" );
 	
 	# write the archive
-	unless ( $zip->writeToFileNamed($zipoutput) == AZ_OK ) {
-		print "Could not write zip file $zipoutput";
-	}
+#	unless ( $zip->writeToFileNamed($zipoutput) == AZ_OK ) {
+#		print "Could not write zip file $zipoutput";
+#	}
 	
 	# add the zip file to the list of files to send
 	push @filesToSend, $zipoutput;
@@ -362,7 +365,7 @@ sub zipDirectory {
 	
 	# add the restore scripts
 #	$zip->addTree( $dirToZip );
-	`/usr/bin/zip -r $zipoutput $dirToZip`
+	`/usr/bin/zip -r $zipoutput $dirToZip`;
 	
 	# write the archive
 #	unless ( $zip->writeToFileNamed($zipoutput) == AZ_OK ) {
@@ -432,7 +435,7 @@ sub sendFilesToS3 {
 #				content_type        => 'application/zip'
 #			}
 #		);
-		`s3cmd put $fileToSend s3://${s3bucket}/${s3KeyPrefix}.${suffix}`	
+		`s3cmd put $fileToSend s3://${s3bucket}/${s3KeyPrefix}.${suffix}`;	
 		my $msg;
 		if($status) {
 			$msg = "Upload file $suffix of " .  (-s $fileToSend) . " bytes.";
