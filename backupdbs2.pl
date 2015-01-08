@@ -11,11 +11,10 @@
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
+#
+#   Written by Dan Kolz (dan.kolz at spiderstrategies)
 use Config::Properties;
-#use File::Copy;
-#use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
 use List::MoreUtils qw(firstidx);
-#use Net::Amazon::S3;
 use Net::SMTP_auth;
 
 # setup config file location
@@ -245,17 +244,14 @@ sub createSingleZipFile {
 	$zipoutput = $outputlocation . ".zip";
 	$dayofweekzipoutput = $outputlocation . "_" . $dayOfTheWeek . ".zip";
 #	$zip = Archive::Zip->new();
-	
+	print "zipping to $zipoutput \n";
 	# add the restore scripts
-	`/usr/bin/zip -r $zipoutput $outputlocation/restore.bat`;
-	`/usr/bin/zip -r $zipoutput $outputlocation/restore.sh`;
-#	$zip->addFile( "$outputlocation/restore.bat", "restore.bat" );
-#	$zip->addFile( "$outputlocation/restore.sh", "restore.sh" );
+	print `/usr/bin/zip -r $zipoutput $outputlocation/restore.bat` . "\n";
+	print `/usr/bin/zip -r $zipoutput $outputlocation/restore.sh` . "\n";
 	
 	# add the database backup sql files
 	foreach $databaseFileName (@databaseFileNames) {
-#		$zip->addFile( "$outputlocation/$databaseFileName", $databaseFileName );
-		`/usr/bin/zip -r $zipoutput $outputlocation/$databaseFileName`;
+		print `/usr/bin/zip -r $zipoutput $outputlocation/$databaseFileName` . "\n";
 	}
 	
 	# write the archive
@@ -290,17 +286,13 @@ sub createAndSendZipFileForDatabase {
 	else {
 		$zipoutput = "$parentOutputLocation/$database" .  ".zip";
 	}
-#	my $zip = Archive::Zip->new();
 	
 	# add the restore scripts
+	print "add the restore scripts for zip location: $zipoutput\n";
 	my $databaseSQLFileLocation = "$outputlocation/$database.sql";
-	`/usr/bin/zip -r $zipoutput $databaseSQLFileLocation`;
-#	$zip->addFile( $databaseSQLFileLocation, "$database.sql" );
-	
-	# write the archive
-#	unless ( $zip->writeToFileNamed($zipoutput) == AZ_OK ) {
-#		print "Could not write zip file $zipoutput";
-#	}
+	my $cmd = "/usr/bin/zip -r $zipoutput $databaseSQLFileLocation";
+	print $cmd . "\n";
+	print `/usr/bin/zip -r $zipoutput $databaseSQLFileLocation` . "\n";
 	
 	# add the zip file to the list of files to send
 	push @filesToSend, $zipoutput;
@@ -361,18 +353,9 @@ sub zipDirectory {
 	
 	print "\nzipping directory $zipName\n";
 	
-#	my $zip = Archive::Zip->new();
 	
 	# add the restore scripts
-#	$zip->addTree( $dirToZip );
 	`/usr/bin/zip -r $zipoutput $dirToZip`;
-	
-	# write the archive
-#	unless ( $zip->writeToFileNamed($zipoutput) == AZ_OK ) {
-#		my $msg = "Could not write zip file $zipoutput.\n";
-#		print $msg;
-#		push @emailMessages, $msg;
-#	}
 	
 	# add the zip file to the list of files to send
 	push @filesToSend, $zipoutput;
@@ -409,18 +392,6 @@ sub deleteAFile {
 }
 
 sub sendFilesToS3 {
-#	$s3 = Net::Amazon::S3->new(
-#		{
-#			aws_access_key_id     => $s3id,
-#			aws_secret_access_key => $s3password,
-#			retry 				  => 1
-#		}
-#	);
-	
-#	$bucket = $s3->bucket($s3bucket);
-	
-	
-	
 	foreach $fileToSend (@filesToSend) {
 		print "uploading $fileToSend to ", $s3bucket, "\n";
 		# Adding the current copy of the databases
@@ -429,16 +400,9 @@ sub sendFilesToS3 {
 		$fileToSend =~ m:.*[/](.*?)$:;
 		$suffix = $1;
 		
-#		my $status = $bucket->add_key_filename(
-#			$s3KeyPrefix . $suffix, $fileToSend,
-#			{   
-#				content_type        => 'application/zip'
-#			}
-#		);
-		`s3cmd put $fileToSend s3://${s3bucket}/${s3KeyPrefix}.${suffix}`;	
-		my $msg;
-		if($status) {
-			$msg = "Upload file $suffix of " .  (-s $fileToSend) . " bytes.";
+		my $msg = `s3cmd put $fileToSend s3://${s3bucket}/${s3KeyPrefix}${suffix}` . "\n";	
+		if(index($msg, 'stored') != -1) {
+			$msg = "Uploaded file $suffix of " .  (-s $fileToSend) . " bytes.";
 		}
 		else {
 			$msg = "Could not upload file $suffix.";
@@ -459,7 +423,8 @@ sub createRollingBackupS3Keys {
 	$pre = $1;
 	$post = "." . $2;
 	
-	my $currentS3Key = "/$s3bucket/$currentFileName";
+	my $currentS3Key = "s3://$s3bucket/$currentFileName";
+	$pre = "s3://$s3bucket/" . $pre;
 	
 	if($rollingBackups =~ m/day/) {
 		my $s3duplicateDestination = $pre . "_" . $dayOfTheWeek . $post;
@@ -490,7 +455,6 @@ sub createRollingBackupS3Keys {
 sub createDayOfWeekCopies {
 	# what we're doing here is copying this backup to a file with the name of a day of the week.
 	`cp $zipoutput $dayofweekzipoutput`;
-#	copy($zipoutput, $dayofweekzipoutput);
 	
 	# add the day of the week file to the list to send
 	push @filesToSend, $dayofweekzipoutput;
