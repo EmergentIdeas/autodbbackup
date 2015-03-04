@@ -290,9 +290,9 @@ sub createAndSendZipFileForDatabase {
 	# add the restore scripts
 	print "add the restore scripts for zip location: $zipoutput\n";
 	my $databaseSQLFileLocation = "$outputlocation/$database.sql";
-	my $cmd = "/usr/bin/zip -r $zipoutput $databaseSQLFileLocation";
+	my $cmd = "cd $outputlocation; /usr/bin/zip -r $zipoutput $database.sql";
 	print $cmd . "\n";
-	print `/usr/bin/zip -r $zipoutput $databaseSQLFileLocation` . "\n";
+	print `$cmd` . "\n";
 	
 	# add the zip file to the list of files to send
 	push @filesToSend, $zipoutput;
@@ -399,8 +399,9 @@ sub sendFilesToS3 {
 		# find the last part of the name
 		$fileToSend =~ m:.*[/](.*?)$:;
 		$suffix = $1;
-		
-		my $msg = `s3cmd put $fileToSend s3://${s3bucket}/${s3KeyPrefix}${suffix}` . "\n";	
+		my $s3PutCmd = "s3cmd put '$fileToSend' 's3://${s3bucket}/${s3KeyPrefix}${suffix}'";
+		print $s3PutCmd . "\n";	
+		my $msg = `s3cmd put '$fileToSend' 's3://${s3bucket}/${s3KeyPrefix}${suffix}'` . "\n";	
 		if(index($msg, 'stored') != -1) {
 			$msg = "Uploaded file $suffix of " .  (-s $fileToSend) . " bytes.";
 		}
@@ -428,27 +429,27 @@ sub createRollingBackupS3Keys {
 	
 	if($rollingBackups =~ m/day/) {
 		my $s3duplicateDestination = $pre . "_" . $dayOfTheWeek . $post;
-		`s3cmd cp $currentS3Key $s3duplicateDestination`;
+		`s3cmd cp '$currentS3Key' '$s3duplicateDestination'`;
 	}
 	if($rollingBackups =~ m/week/) {
 		my $s3duplicateDestination = $pre . "_" . $weekOfTheMonth . $post;
-		`s3cmd cp $currentS3Key $s3duplicateDestination`;
+		`s3cmd cp '$currentS3Key' '$s3duplicateDestination'`;
 	}
 	if($rollingBackups =~ m/month/) {
 		my $s3duplicateDestination = $pre . "_" . $monthOfTheYear . $post;
-		`s3cmd cp $currentS3Key $s3duplicateDestination`;
+		`s3cmd cp '$currentS3Key' '$s3duplicateDestination'`;
 	}
 	if($rollingBackups =~ m/year/) {
 		my $s3duplicateDestination = $pre . "_" . $yearValue . $post;
-		`s3cmd cp $currentS3Key $s3duplicateDestination`;
+		`s3cmd cp '$currentS3Key' '$s3duplicateDestination'`;
 	}
 	if($rollingBackups =~ m/inquarter/) {
 		my $s3duplicateDestination = $pre . "_" . $dayInQuarterValue . $post;
-		`s3cmd cp $currentS3Key $s3duplicateDestination`;
+		`s3cmd cp '$currentS3Key' '$s3duplicateDestination'`;
 	}
 	if($rollingBackups =~ m/mm_yy/) {
 		my $s3duplicateDestination = $pre . "_" . $mmyyValue . $post;
-		`s3cmd cp $currentS3Key $s3duplicateDestination`;
+		`s3cmd cp '$currentS3Key' '$s3duplicateDestination'`;
 	}
 }
 
